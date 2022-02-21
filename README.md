@@ -29,6 +29,7 @@ Environment variable|default|description
 BASE_URL|None| Use the following format https:// <Nifi Domain> : <Cluster port>
 USERNAME|None|Please make sure you have the relevant policies 
 PASSWORD|None|
+IS_CLUSTER|False|
   
   
 ## Metrics

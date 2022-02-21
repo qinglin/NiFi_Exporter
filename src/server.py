@@ -17,6 +17,7 @@ CONTENT_TYPE_LATEST = str('text/plain; version=0.0.4; charset=utf-8')
 BASE_URL = os.environ['BASE_URL']
 USERNAME = os.environ.get('USERNAME')
 PASSWORD = os.environ.get('PASSWORD')
+IS_CLUSTER = os.environ.get('IS_CLUSTER') if os.environ.get('IS_CLUSTER') is not None else False
 
 app = Flask(import_name=__name__)
 
@@ -35,24 +36,25 @@ def metrics():
     token = getToken(url, USERNAME, PASSWORD)
 
   #### ====  cluster nodes status ==== ####
-  url = BASE_URL + "/nifi-api/controller/cluster"
-  cluster = getCluster(url, token)
-  for item in cluster:
-    NodeName = {"instance":item['address']}
-    nodeStatus = Gauge('nifi_nodes_status', 'Nifi node status', NodeName.keys(), registry=registry)
-    activeThreadCount = Gauge('nifi_node_activeThreadCount', 'Total number of activeThreadCount per node', NodeName.keys(), registry=registry)
-    queuedItems = Gauge('nifi_node_queuedItems','Number of queud items per node', NodeName.keys(), registry=registry)
+  if IS_CLUSTER:
+      url = BASE_URL + "/nifi-api/controller/cluster"
+      cluster = getCluster(url, token)
+      for item in cluster:
+        NodeName = {"instance":item['address']}
+        nodeStatus = Gauge('nifi_nodes_status', 'Nifi node status', NodeName.keys(), registry=registry)
+        activeThreadCount = Gauge('nifi_node_activeThreadCount', 'Total number of activeThreadCount per node', NodeName.keys(), registry=registry)
+        queuedItems = Gauge('nifi_node_queuedItems','Number of queud items per node', NodeName.keys(), registry=registry)
 
-    nodeStatus.labels(**NodeName).set(convertStatus(item['status']))
-    lst.append(prometheus_client.generate_latest(nodeStatus))
+        nodeStatus.labels(**NodeName).set(convertStatus(item['status']))
+        lst.append(prometheus_client.generate_latest(nodeStatus))
 
-    activeThreadCount.labels(**NodeName).set(item['activeThreadCount'])
-    lst.append(prometheus_client.generate_latest(activeThreadCount))
-    flow = float(item['queued'].rsplit(' ')[0].replace(',',''))
-    queuedItems.labels(**NodeName).set(flow)
-    lst.append(prometheus_client.generate_latest(queuedItems))
+        activeThreadCount.labels(**NodeName).set(item['activeThreadCount'])
+        lst.append(prometheus_client.generate_latest(activeThreadCount))
+        flow = float(item['queued'].rsplit(' ')[0].replace(',',''))
+        queuedItems.labels(**NodeName).set(flow)
+        lst.append(prometheus_client.generate_latest(queuedItems))
 
-    registry = CollectorRegistry()
+        registry = CollectorRegistry()
 
   #### ====  general cluster info ==== ####
   url=BASE_URL+"/nifi-api/flow/about"
@@ -89,7 +91,7 @@ def metrics():
 
     registry=CollectorRegistry()
 
-  return Response(lst,mimetype=CONTENT_TYPE_LATEST)
+  return Response(lst, mimetype=CONTENT_TYPE_LATEST)
 
 if __name__ == "__main__":
   app.debug = True
